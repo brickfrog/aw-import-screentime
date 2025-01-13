@@ -49,8 +49,11 @@ SingleInstance.__init__ = patched_init
 
 
 def send_to_activitywatch(events: List[Event], device: Tuple[str, str], config: dict) -> None:
-    hostname = f"ios-{device[0]}-{device[1]}"
-    bucket = f"aw-watcher-android_aw-import-screentime_{hostname}"
+    # Extract just the base model name (e.g. iPad from iPad12,1)
+    model = device[1].split('-')[-1] if '-' in device[1] else device[1]
+    model = ''.join(c for c in model if c.isalpha())
+    hostname = f"ios-{model}"
+    bucket = f"aw-import-screentime_{hostname}"
 
     server_address = config["server"].get("host", DEFAULT_SERVER_ADDRESS)
     
