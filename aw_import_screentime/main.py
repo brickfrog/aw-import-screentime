@@ -2,6 +2,8 @@ from datetime import datetime
 from pathlib import Path
 import sqlite3
 import os
+from typing import List, Tuple
+from sqlite3 import Connection, Cursor
 
 from dotenv import load_dotenv
 from aw_core import Event
@@ -10,25 +12,33 @@ from aw_client import ActivityWatchClient
 # Load environment variables from .env file
 load_dotenv()
 
+# Constants
+DEFAULT_SERVER_ADDRESS = "http://localhost:5600"
+CLIENT_NAME = "aw-import-screentime"
+BUCKET_TYPE = "currentwindow"
+DB_TEST_PATH = "~/tmp/sync-with-vm-host/Knowledge/knowledgeC.db"
+DB_PROD_PATH = "~/Library/Application Support/Knowledge/knowledgeC.db"
+
 
 def main() -> None:
     dbfile = _get_db_path()
     print(f"Reading from database file at {dbfile}")
-    conn = sqlite3.connect(_get_db_path())
-    conn.execute("pragma journal_mode=wal;")
-    cur = conn.cursor()
-    devices = get_devices(cur)
+    
+    with sqlite3.connect(dbfile) as conn:
+        conn.execute("pragma journal_mode=wal;")
+        cur = conn.cursor()
+        devices = get_devices(cur)
 
-    for index, device in enumerate(devices):
-        events = get_events_for_device(device[0], cur)
-        print(
-            f"{index + 1} / {len(devices)} Sending {len(events)} events to ActivityWatch for device {device[0]} - {device[1]}"
-        )
-        if len(events) > 0:
-            send_to_activitywatch(events, device)
+        for index, device in enumerate(devices):
+            events = get_events_for_device(device[0], cur)
+            print(
+                f"{index + 1} / {len(devices)} Sending {len(events)} events to ActivityWatch for device {device[0]} - {device[1]}"
+            )
+            if len(events) > 0:
+                send_to_activitywatch(events, device)
 
 
-def get_devices(database_connection):
+def get_devices(database_connection: Cursor) -> List[Tuple[str, str]]:
     query = """
     SELECT
       DISTINCT(ZSOURCE.ZDEVICEID) as deviceId,
@@ -42,7 +52,7 @@ def get_devices(database_connection):
     return list(database_connection.execute(query))
 
 
-def get_events_for_device(device, database_connection):
+def get_events_for_device(device: str, database_connection: Cursor) -> List[Event]:
     query = """
   SELECT
     ZOBJECT.ZVALUESTRING AS "app",
@@ -93,24 +103,20 @@ def get_events_for_device(device, database_connection):
     ]
 
 
-def send_to_activitywatch(events, device):
+def send_to_activitywatch(events: List[Event], device: Tuple[str, str]) -> None:
     hostname = f"ios-{device[0]}-{device[1]}"
-    # NOTE: 'aw-watcher-android' string is only there for aw-webui to detect it as a mobile device
     bucket = f"aw-watcher-android_aw-import-screentime_{hostname}"
 
-    # Get server address from environment variable, with fallback
-    server_address = os.getenv("AW_SERVER_ADDRESS", "http://localhost:5600")
-    aw = ActivityWatchClient(client_name="aw-import-screentime", testing=False, host=server_address)
+    server_address = os.getenv("AW_SERVER_ADDRESS", DEFAULT_SERVER_ADDRESS)
+    aw = ActivityWatchClient(client_name=CLIENT_NAME, testing=False, host=server_address)
     aw.client_hostname = hostname
-    aw.create_bucket(bucket, "currentwindow")
+    aw.create_bucket(bucket, BUCKET_TYPE)
     aw.insert_events(bucket, events)
 
 
-def _get_db_path():
-    path_test = Path("~/tmp/sync-with-vm-host/Knowledge/knowledgeC.db").expanduser()
-    path_prod = Path(
-        "~/Library/Application Support/Knowledge/knowledgeC.db"
-    ).expanduser()
+def _get_db_path() -> Path:
+    path_test = Path(DB_TEST_PATH).expanduser()
+    path_prod = Path(DB_PROD_PATH).expanduser()
 
     path = path_test if path_test.exists() else path_prod
     assert path.exists(), "couldn't find database file"
