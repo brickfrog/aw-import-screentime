@@ -5,8 +5,8 @@ from sqlite3 import Cursor
 import tomllib
 from typing import List, Tuple
 
-
 from aw_client import ActivityWatchClient
+from aw_client.singleinstance import SingleInstance
 from aw_core import Event
 
 # Constants
@@ -31,6 +31,41 @@ def load_config() -> dict:
     
     with open(config_path, "rb") as f:
         return tomllib.load(f)
+
+
+def _sanitize_host(host: str) -> str:
+    """Sanitize host string to be usable in a filename"""
+    return host.replace(":", "-").replace("/", "-").replace(".", "-")
+
+
+# Patch SingleInstance to use our custom path
+original_init = SingleInstance.__init__
+def patched_init(self, name):
+    lockfile = str(Path(AW_CACHE_DIR).expanduser() / name)
+    Path(lockfile).parent.mkdir(parents=True, exist_ok=True)
+    original_init(self, lockfile)
+
+SingleInstance.__init__ = patched_init
+
+
+def send_to_activitywatch(events: List[Event], device: Tuple[str, str], config: dict) -> None:
+    hostname = f"ios-{device[0]}-{device[1]}"
+    bucket = f"aw-watcher-android_aw-import-screentime_{hostname}"
+
+    server_address = config["server"].get("host", DEFAULT_SERVER_ADDRESS)
+    
+    # Create client with actual server address
+    aw = ActivityWatchClient(
+        client_name=CLIENT_NAME, 
+        testing=False, 
+        host=server_address
+    )
+    
+    # Set the hostname for device identification
+    aw.client_hostname = hostname
+    
+    aw.create_bucket(bucket, BUCKET_TYPE)
+    aw.insert_events(bucket, events)
 
 
 def main() -> None:
@@ -116,48 +151,6 @@ def get_events_for_device(device: str, database_connection: Cursor) -> List[Even
         )
         for row in rows
     ]
-
-
-def _sanitize_host(host: str) -> str:
-    """Sanitize host string to be usable in a filename"""
-    return host.replace(":", "-").replace("/", "-").replace(".", "-")
-
-
-class CustomActivityWatchClient(ActivityWatchClient):
-    def __init__(self, client_name: str, testing: bool, host: str, cache_dir: str):
-        self.client_name = client_name
-        self.testing = testing
-        self.host = host
-        
-        # Initialize without SingleInstance first
-        super().__init__(client_name=client_name, testing=testing, host=host)
-        
-        # Then override the instance with our custom path
-        from aw_client.singleinstance import SingleInstance
-        lockfile = str(Path(cache_dir).expanduser() / f"{client_name}-at-{_sanitize_host(host)}")
-        Path(lockfile).parent.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
-        self.instance = SingleInstance(lockfile)
-
-
-def send_to_activitywatch(events: List[Event], device: Tuple[str, str], config: dict) -> None:
-    hostname = f"ios-{device[0]}-{device[1]}"
-    bucket = f"aw-watcher-android_aw-import-screentime_{hostname}"
-
-    server_address = config["server"].get("host", DEFAULT_SERVER_ADDRESS)
-    
-    # Create client with actual server address and custom lock file handling
-    aw = CustomActivityWatchClient(
-        client_name=CLIENT_NAME, 
-        testing=False, 
-        host=server_address,
-        cache_dir=AW_CACHE_DIR
-    )
-    
-    # Set the hostname for device identification
-    aw.client_hostname = hostname
-    
-    aw.create_bucket(bucket, BUCKET_TYPE)
-    aw.insert_events(bucket, events)
 
 
 def _get_db_path() -> Path:
