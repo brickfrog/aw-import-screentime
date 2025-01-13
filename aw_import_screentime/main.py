@@ -123,22 +123,36 @@ def _sanitize_host(host: str) -> str:
     return host.replace(":", "-").replace("/", "-").replace(".", "-")
 
 
+class CustomActivityWatchClient(ActivityWatchClient):
+    def __init__(self, client_name: str, testing: bool, host: str, cache_dir: str):
+        self.client_name = client_name
+        self.testing = testing
+        self.host = host
+        # Set up instance before parent init to control lock file path
+        from aw_client.singleinstance import SingleInstance
+        self.instance = SingleInstance(
+            "{}-at-{}".format(client_name, _sanitize_host(host)),
+            str(Path(cache_dir).expanduser())
+        )
+        super().__init__(client_name=client_name, testing=testing, host=host)
+
+
 def send_to_activitywatch(events: List[Event], device: Tuple[str, str], config: dict) -> None:
     hostname = f"ios-{device[0]}-{device[1]}"
     bucket = f"aw-watcher-android_aw-import-screentime_{hostname}"
 
     server_address = config["server"].get("host", DEFAULT_SERVER_ADDRESS)
     
-    # Create client with actual server address
-    aw = ActivityWatchClient(
+    # Create client with actual server address and custom lock file handling
+    aw = CustomActivityWatchClient(
         client_name=CLIENT_NAME, 
         testing=False, 
-        host=server_address
+        host=server_address,
+        cache_dir=AW_CACHE_DIR
     )
     
-    # Set the hostname for the lock file
+    # Set the hostname for device identification
     aw.client_hostname = hostname
-    aw.instance.lockfile = str(Path(AW_CACHE_DIR).expanduser() / f"{CLIENT_NAME}-at-{_sanitize_host(server_address)}")
     
     aw.create_bucket(bucket, BUCKET_TYPE)
     aw.insert_events(bucket, events)
