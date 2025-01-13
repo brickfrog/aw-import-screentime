@@ -54,11 +54,18 @@ def send_to_activitywatch(events: List[Event], device: Tuple[str, str], config: 
 
     server_address = config["server"].get("host", DEFAULT_SERVER_ADDRESS)
     
+    # Parse server URL to get host and port
+    from urllib.parse import urlparse
+    parsed_url = urlparse(server_address)
+    host = parsed_url.hostname or "localhost"
+    port = parsed_url.port or 5600
+    
     # Create client with actual server address
     aw = ActivityWatchClient(
         client_name=CLIENT_NAME, 
         testing=False, 
-        host=server_address
+        host=host,
+        port=port
     )
     
     # Set the hostname for device identification
