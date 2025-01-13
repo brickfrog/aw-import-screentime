@@ -128,12 +128,18 @@ def send_to_activitywatch(events: List[Event], device: Tuple[str, str], config: 
     bucket = f"aw-watcher-android_aw-import-screentime_{hostname}"
 
     server_address = config["server"].get("host", DEFAULT_SERVER_ADDRESS)
+    
+    # Create client with actual server address
     aw = ActivityWatchClient(
         client_name=CLIENT_NAME, 
         testing=False, 
-        host=_sanitize_host(server_address)
+        host=server_address
     )
+    
+    # Set the hostname for the lock file
     aw.client_hostname = hostname
+    aw.instance.lockfile = str(Path(AW_CACHE_DIR).expanduser() / f"{CLIENT_NAME}-at-{_sanitize_host(server_address)}")
+    
     aw.create_bucket(bucket, BUCKET_TYPE)
     aw.insert_events(bucket, events)
 
