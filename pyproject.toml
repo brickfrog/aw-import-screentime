@@ -1,6 +1,6 @@
 [project]
 name = "aw-import-screentime"
-authors = ["Erik Bjäreholt <erik@bjareho.lt>"]
+authors = [{name = "Erik Bjäreholt", email = "erik@bjareho.lt"}]
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -9,3 +9,6 @@ dependencies = [
     "aw-client>=0.5.15",
     "aw-core>=0.5.17",
 ]
+
+[project.scripts]
+aw-import-screentime = "aw_import_screentime.main:main"
