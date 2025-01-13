@@ -12,20 +12,19 @@ Based on analysis of the `Knowledge.db` file done here: https://www.r-bloggers.c
 
 Requirements:
 
- - Python 3.7+
- - Poetry
+ - Python 3.12+
+ - uv (install with `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 
-Install dependencies with: `poetry install`
+Install dependencies with: `uv pip install .`
 
-Run script with: `poetry run python3 main.py`
+Run script with: `python3 main.py`
 
 
 ## Limitations of Knowledge.db
 
  - macOS doesn't keep track of which apps are active and which are inactive (only that they run, or at least have an open window?)
    - It almost seems like sometimes it does and sometimes it doesn't, weird.
-   - Is it different for iOS?
+   - Is it different for iOS? (It seems to work for iOS, but leaving this just inc case)
  - How far back does the history go?
-   - On my VM it goes to 2020-02-01 (~2.5mo back), but I've definitely used the machine before that.
- - How often does the db file update?
+ - How often does the db file update? (based on icloud, a couple of hours?)
    - I can't seem to retrieve the latest entries, maybe they are stuck in WAL?
