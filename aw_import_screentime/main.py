@@ -128,11 +128,15 @@ class CustomActivityWatchClient(ActivityWatchClient):
         self.client_name = client_name
         self.testing = testing
         self.host = host
-        # Set up instance before parent init to control lock file path
+        
+        # Initialize without SingleInstance first
+        super().__init__(client_name=client_name, testing=testing, host=host)
+        
+        # Then override the instance with our custom path
         from aw_client.singleinstance import SingleInstance
         lockfile = str(Path(cache_dir).expanduser() / f"{client_name}-at-{_sanitize_host(host)}")
+        Path(lockfile).parent.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
         self.instance = SingleInstance(lockfile)
-        super().__init__(client_name=client_name, testing=testing, host=host)
 
 
 def send_to_activitywatch(events: List[Event], device: Tuple[str, str], config: dict) -> None:
