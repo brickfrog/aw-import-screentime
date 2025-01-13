@@ -1,16 +1,13 @@
 from datetime import datetime
 from pathlib import Path
-import os
 import sqlite3
 from sqlite3 import Cursor
+import tomllib
 from typing import List, Tuple
+
 
 from aw_client import ActivityWatchClient
 from aw_core import Event
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
 
 # Constants
 DEFAULT_SERVER_ADDRESS = "http://localhost:5600"
@@ -18,9 +15,20 @@ CLIENT_NAME = "aw-import-screentime"
 BUCKET_TYPE = "currentwindow"
 DB_TEST_PATH = "~/tmp/sync-with-vm-host/Knowledge/knowledgeC.db"
 DB_PROD_PATH = "~/Library/Application Support/Knowledge/knowledgeC.db"
+CONFIG_PATH = "~/.config/activitywatch/aw-import-screentime/aw-import-screentime.toml"
+
+
+def load_config() -> dict:
+    config_path = Path(CONFIG_PATH).expanduser()
+    if not config_path.exists():
+        return {"server": {"host": DEFAULT_SERVER_ADDRESS}}
+    
+    with open(config_path, "rb") as f:
+        return tomllib.load(f)
 
 
 def main() -> None:
+    config = load_config()
     dbfile = _get_db_path()
     print(f"Reading from database file at {dbfile}")
 
@@ -35,7 +43,7 @@ def main() -> None:
                 f"{index + 1} / {len(devices)} Sending {len(events)} events to ActivityWatch for device {device[0]} - {device[1]}"
             )
             if len(events) > 0:
-                send_to_activitywatch(events, device)
+                send_to_activitywatch(events, device, config)
 
 
 def get_devices(database_connection: Cursor) -> List[Tuple[str, str]]:
@@ -103,11 +111,11 @@ def get_events_for_device(device: str, database_connection: Cursor) -> List[Even
     ]
 
 
-def send_to_activitywatch(events: List[Event], device: Tuple[str, str]) -> None:
+def send_to_activitywatch(events: List[Event], device: Tuple[str, str], config: dict) -> None:
     hostname = f"ios-{device[0]}-{device[1]}"
     bucket = f"aw-watcher-android_aw-import-screentime_{hostname}"
 
-    server_address = os.getenv("AW_SERVER_ADDRESS", DEFAULT_SERVER_ADDRESS)
+    server_address = config["server"].get("host", DEFAULT_SERVER_ADDRESS)
     aw = ActivityWatchClient(
         client_name=CLIENT_NAME, testing=False, host=server_address
     )
