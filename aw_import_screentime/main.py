@@ -130,10 +130,8 @@ class CustomActivityWatchClient(ActivityWatchClient):
         self.host = host
         # Set up instance before parent init to control lock file path
         from aw_client.singleinstance import SingleInstance
-        self.instance = SingleInstance(
-            "{}-at-{}".format(client_name, _sanitize_host(host)),
-            str(Path(cache_dir).expanduser())
-        )
+        lockfile = str(Path(cache_dir).expanduser() / f"{client_name}-at-{_sanitize_host(host)}")
+        self.instance = SingleInstance(lockfile)
         super().__init__(client_name=client_name, testing=testing, host=host)
 
 
