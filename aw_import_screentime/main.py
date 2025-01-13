@@ -63,7 +63,6 @@ def send_to_activitywatch(events: List[Event], device: Tuple[str, str], config: 
     host = parsed_url.hostname or "localhost"
     port = parsed_url.port or 5600
     
-    # Create client with actual server address
     aw = ActivityWatchClient(
         client_name=CLIENT_NAME, 
         testing=False, 
@@ -71,11 +70,30 @@ def send_to_activitywatch(events: List[Event], device: Tuple[str, str], config: 
         port=port
     )
     
-    # Set the hostname for device identification
     aw.client_hostname = hostname
-    
     aw.create_bucket(bucket, BUCKET_TYPE)
-    aw.insert_events(bucket, events)
+
+    # Get existing events
+    existing_events = aw.get_events(bucket, limit=-1)
+    
+    # Create a set of (timestamp, app, duration) tuples for existing events
+    existing_event_keys = {
+        (e.timestamp.isoformat(), e.data["app"], e.duration.total_seconds()) 
+        for e in existing_events
+    }
+    
+    # Filter out duplicate events
+    new_events = [
+        event for event in events
+        if (event.timestamp.isoformat(), event.data["app"], event.duration.total_seconds()) 
+        not in existing_event_keys
+    ]
+    
+    if new_events:
+        print(f"Found {len(new_events)} new events to insert (filtered out {len(events) - len(new_events)} duplicates)")
+        aw.insert_events(bucket, new_events)
+    else:
+        print("No new events to insert")
 
 
 def main() -> None:
