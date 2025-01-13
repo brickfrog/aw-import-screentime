@@ -118,13 +118,20 @@ def get_events_for_device(device: str, database_connection: Cursor) -> List[Even
     ]
 
 
+def _sanitize_host(host: str) -> str:
+    """Sanitize host string to be usable in a filename"""
+    return host.replace(":", "-").replace("/", "-").replace(".", "-")
+
+
 def send_to_activitywatch(events: List[Event], device: Tuple[str, str], config: dict) -> None:
     hostname = f"ios-{device[0]}-{device[1]}"
     bucket = f"aw-watcher-android_aw-import-screentime_{hostname}"
 
     server_address = config["server"].get("host", DEFAULT_SERVER_ADDRESS)
     aw = ActivityWatchClient(
-        client_name=CLIENT_NAME, testing=False, host=server_address
+        client_name=CLIENT_NAME, 
+        testing=False, 
+        host=_sanitize_host(server_address)
     )
     aw.client_hostname = hostname
     aw.create_bucket(bucket, BUCKET_TYPE)
