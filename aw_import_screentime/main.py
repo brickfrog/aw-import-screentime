@@ -1,13 +1,13 @@
 from datetime import datetime
 from pathlib import Path
-import sqlite3
 import os
+import sqlite3
+from sqlite3 import Cursor
 from typing import List, Tuple
-from sqlite3 import Connection, Cursor
 
-from dotenv import load_dotenv
-from aw_core import Event
 from aw_client import ActivityWatchClient
+from aw_core import Event
+from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
@@ -23,7 +23,7 @@ DB_PROD_PATH = "~/Library/Application Support/Knowledge/knowledgeC.db"
 def main() -> None:
     dbfile = _get_db_path()
     print(f"Reading from database file at {dbfile}")
-    
+
     with sqlite3.connect(dbfile) as conn:
         conn.execute("pragma journal_mode=wal;")
         cur = conn.cursor()
@@ -108,7 +108,9 @@ def send_to_activitywatch(events: List[Event], device: Tuple[str, str]) -> None:
     bucket = f"aw-watcher-android_aw-import-screentime_{hostname}"
 
     server_address = os.getenv("AW_SERVER_ADDRESS", DEFAULT_SERVER_ADDRESS)
-    aw = ActivityWatchClient(client_name=CLIENT_NAME, testing=False, host=server_address)
+    aw = ActivityWatchClient(
+        client_name=CLIENT_NAME, testing=False, host=server_address
+    )
     aw.client_hostname = hostname
     aw.create_bucket(bucket, BUCKET_TYPE)
     aw.insert_events(bucket, events)
