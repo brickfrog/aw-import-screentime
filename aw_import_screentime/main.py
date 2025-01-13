@@ -1,9 +1,14 @@
 from datetime import datetime
 from pathlib import Path
 import sqlite3
+import os
 
+from dotenv import load_dotenv
 from aw_core import Event
 from aw_client import ActivityWatchClient
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 def main() -> None:
@@ -93,7 +98,9 @@ def send_to_activitywatch(events, device):
     # NOTE: 'aw-watcher-android' string is only there for aw-webui to detect it as a mobile device
     bucket = f"aw-watcher-android_aw-import-screentime_{hostname}"
 
-    aw = ActivityWatchClient(client_name="aw-import-screentime")
+    # Get server address from environment variable, with fallback
+    server_address = os.getenv("AW_SERVER_ADDRESS", "http://localhost:5600")
+    aw = ActivityWatchClient(client_name="aw-import-screentime", testing=False, host=server_address)
     aw.client_hostname = hostname
     aw.create_bucket(bucket, "currentwindow")
     aw.insert_events(bucket, events)
