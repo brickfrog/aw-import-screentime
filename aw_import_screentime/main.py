@@ -16,6 +16,12 @@ BUCKET_TYPE = "currentwindow"
 DB_TEST_PATH = "~/tmp/sync-with-vm-host/Knowledge/knowledgeC.db"
 DB_PROD_PATH = "~/Library/Application Support/Knowledge/knowledgeC.db"
 CONFIG_PATH = "~/.config/activitywatch/aw-import-screentime/aw-import-screentime.toml"
+AW_CACHE_DIR = "~/Library/Caches/activitywatch/client_locks"
+
+
+def ensure_aw_dirs() -> None:
+    cache_dir = Path(AW_CACHE_DIR).expanduser()
+    cache_dir.mkdir(parents=True, exist_ok=True)
 
 
 def load_config() -> dict:
@@ -28,6 +34,7 @@ def load_config() -> dict:
 
 
 def main() -> None:
+    ensure_aw_dirs()
     config = load_config()
     dbfile = _get_db_path()
     print(f"Reading from database file at {dbfile}")
